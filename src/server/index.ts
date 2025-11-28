@@ -2,6 +2,7 @@ import amqp from "amqplib";
 import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
 import { publishJSON } from "../internal/pubsub/index.js";
 import type { PlayingState } from "../internal/gamelogic/gamestate.js";
+import { getInput, printServerHelp } from "../internal/gamelogic/gamelogic.js";
 
 async function main() {
   console.log("Starting Peril server...");
@@ -11,18 +12,37 @@ async function main() {
 
   const ch = await rabConn.createConfirmChannel();
 
-  const playingState: PlayingState = {
-    isPaused: true,
-  };
+  printServerHelp();
 
-  await publishJSON(ch, ExchangePerilDirect, PauseKey, playingState);
+  while (true) {
+    const words = await getInput();
+    if (words.length === 0) {
+      continue;
+    }
 
-  process.on("SIGINT", async () => {
-    console.log("\nProgram is shutting down...");
-    await rabConn.close();
-    console.log("Connection closed.");
-    process.exit(0);
-  });
+    const command = words[0];
+
+    if (command === "pause") {
+      console.log("Pausing game...");
+      const playingState: PlayingState = {
+        isPaused: true,
+      };
+      await publishJSON(ch, ExchangePerilDirect, PauseKey, playingState);
+    } else if (command === "resume") {
+      console.log("Resuming game...");
+      const playingState: PlayingState = {
+        isPaused: false,
+      };
+      await publishJSON(ch, ExchangePerilDirect, PauseKey, playingState);
+    } else if (command === "quit") {
+      console.log("Program is shutting down...");
+      await rabConn.close();
+      console.log("Connection closed.");
+      process.exit(0);
+    } else {
+      console.log("Unknown command. Type 'help' for possible commands.");
+    }
+  }
 }
 
 main().catch((err) => {
