@@ -1,45 +1,48 @@
-# Implementation Plan - Exchanges and Queues
+# Implementation Plan - Transient Queues
 
 ## Goal Description
 
-Implement message publishing in the server using a reusable `publishJSON` helper
-function. This involves creating a confirm channel, defining the helper, and
-publishing a "pause" message to the `peril_direct` exchange.
+Implement automatic queue creation in the client. We will create a
+`declareAndBind` helper function that handles both durable and transient queues,
+and update the client to create a transient queue for receiving pause messages.
 
 ## User Review Required
 
-> [!IMPORTANT]
-> The instructions mention manually creating the exchange via the RabbitMQ
-> Management UI. I will attempt to do this via the RabbitMQ HTTP API using
-> `curl` to automate the process and ensure the server doesn't crash on startup.
+> [!NOTE]
+> I will define `SimpleQueueType` as a string union type
+> `'durable' | 'transient'` in `src/internal/pubsub/index.ts`.
 
 ## Proposed Changes
 
 ### Shared Library
 
-#### [NEW] [index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
+#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
 
-- Create `src/internal/pubsub` directory.
-- Create an exported `publishJSON` function in `src/internal/pubsub` (will use
-  `index.ts` as standard entry point since only directory was specified).
+- Export `SimpleQueueType` type.
+- Implement `declareAndBind` function:
+  - Accepts connection, exchange, queue name, routing key, and queue type.
+  - Creates a channel.
+  - Asserts queue with appropriate flags (durable vs transient).
+  - Binds queue to exchange.
+  - Returns channel and queue assertion.
 
-### Server
+### Client
 
-#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
+#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
 
-- Create a `ConfirmChannel`.
-- Use `publishJSON` to send a `PlayingState` with `isPaused: true` to
-  `ExchangePerilDirect`.
+- Connect to RabbitMQ.
+- Use `clientWelcome` to get username.
+- Call `declareAndBind` to create a transient queue named `pause.<username>`.
 
 ## Verification Plan
 
-### Automated Tests
+### Manual Verification
 
-- Run `npm run rabbit:start` to ensure RabbitMQ is up.
-- Use `curl` to check if the exchange exists and create it if missing.
-- Run `npm run server` and check for errors.
-- Verify using the provided HTTP API checks:
-  - `curl -u guest:guest http://localhost:15672/api/exchanges/%2F/peril_direct`
-    (Expect 200, type=direct)
-  - `curl -u guest:guest http://localhost:15672/api/overview` (Check
-    publish/drop stats)
+- Run `npm run client`, enter username `suntzu`.
+- Keep client running.
+
+### Automated Verification
+
+- While client is running, use `curl` to check queue properties:
+  - `GET /api/queues/%2F/pause.suntzu`
+  - Verify `auto_delete: true`, `exclusive: true`, `durable: false`.

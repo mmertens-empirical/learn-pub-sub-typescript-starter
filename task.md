@@ -12,4 +12,12 @@
 - [x] Update server to publish pause message
 - [x] Create RabbitMQ exchange
 - [x] Verify implementation
+- [x] Create `pause_test` queue
+- [x] Bind queue to `peril_direct` exchange
+- [x] Verify message publication
+- [x] Run CLI tests
+- [x] Clean up (delete queue)
+- [x] Implement `declareAndBind` helper
+- [x] Update client to create transient queue
+- [x] Verify queue creation and properties
 - [ ] Await further instructions

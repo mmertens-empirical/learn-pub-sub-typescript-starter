@@ -48,3 +48,29 @@ Result: **Success** (Type is `direct`)
 ```
 
 Result: **Success** (Published > 0, Drop Unroutable > 0)
+
+# Verification: Transient Queues
+
+## Changes Made
+
+- Implemented `declareAndBind` in `src/internal/pubsub/index.ts`.
+- Updated `src/client/index.ts` to create a transient queue using
+  `declareAndBind`.
+
+## Verification Results
+
+### Queue Properties Verification
+
+Run client with username `suntzu`. `GET /api/queues/%2F/pause.suntzu`
+
+```json
+{
+  "name": "pause.suntzu",
+  "auto_delete": true,
+  "exclusive": true,
+  "durable": false,
+  ...
+}
+```
+
+Result: **Success** (Matches all transient properties)
