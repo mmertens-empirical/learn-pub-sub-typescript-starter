@@ -1,48 +1,45 @@
-# Implementation Plan - Transient Queues
+# Implementation Plan - Client REPL
 
 ## Goal Description
 
-Implement automatic queue creation in the client. We will create a
-`declareAndBind` helper function that handles both durable and transient queues,
-and update the client to create a transient queue for receiving pause messages.
+Update the client to support interactive game commands via a REPL loop. This
+allows players to spawn units, move them, and check their status.
 
 ## User Review Required
 
 > [!NOTE]
-> I will define `SimpleQueueType` as a string union type
-> `'durable' | 'transient'` in `src/internal/pubsub/index.ts`.
+> I will use the existing helper functions provided in
+> `src/internal/gamelogic/`.
 
 ## Proposed Changes
-
-### Shared Library
-
-#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
-
-- Export `SimpleQueueType` type.
-- Implement `declareAndBind` function:
-  - Accepts connection, exchange, queue name, routing key, and queue type.
-  - Creates a channel.
-  - Asserts queue with appropriate flags (durable vs transient).
-  - Binds queue to exchange.
-  - Returns channel and queue assertion.
 
 ### Client
 
 #### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
 
-- Connect to RabbitMQ.
-- Use `clientWelcome` to get username.
-- Call `declareAndBind` to create a transient queue named `pause.<username>`.
+- Import `GameState`, `commandSpawn`, `commandMove`, `printClientHelp`,
+  `printQuit`, `commandStatus`, `getInput`.
+- Initialize `GameState` with the username after connection.
+- Implement an infinite loop:
+  - Wait for input using `getInput`.
+  - Handle `spawn`: Call `commandSpawn`.
+  - Handle `move`: Call `commandMove`.
+  - Handle `status`: Call `commandStatus`.
+  - Handle `help`: Call `printClientHelp`.
+  - Handle `spam`: Print "Spamming not allowed yet!".
+  - Handle `quit`: Call `printQuit` and exit.
+  - Handle unknown commands: Print error.
 
 ## Verification Plan
 
 ### Manual Verification
 
-- Run `npm run client`, enter username `suntzu`.
-- Keep client running.
-
-### Automated Verification
-
-- While client is running, use `curl` to check queue properties:
-  - `GET /api/queues/%2F/pause.suntzu`
-  - Verify `auto_delete: true`, `exclusive: true`, `durable: false`.
+1. Run `npm run client`.
+2. Enter username (e.g., `suntzu`).
+3. Test commands:
+   - `help`
+   - `spawn europe infantry` (Check output for ID)
+   - `status` (Check if unit appears)
+   - `move europe <ID>` (Move unit)
+   - `spam`
+   - `quit`

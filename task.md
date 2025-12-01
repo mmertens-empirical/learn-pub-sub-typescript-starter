@@ -20,4 +20,12 @@
 - [x] Implement `declareAndBind` helper
 - [x] Update client to create transient queue
 - [x] Verify queue creation and properties
+- [x] Update server with REPL loop
+- [x] Implement pause/resume logic
+- [x] Verify with multiple clients
+- [x] Run CLI tests
+- [x] Run CLI tests
+- [x] Implement Client REPL loop
+- [x] Implement `spawn`, `move`, `status`, `help`, `spam`, `quit` commands
+- [x] Verify client commands manually
 - [ ] Await further instructions
