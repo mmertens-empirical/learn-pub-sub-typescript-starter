@@ -33,4 +33,9 @@
 - [x] Update `declareAndBind` for new durable requirements
 - [x] Bind `game_logs` queue in server
 - [x] Verify implementation
+- [x] Implement `subscribeJSON` helper
+- [x] Implement `handlerPause` in client
+- [x] Update client to subscribe to pause messages
+- [x] Verify pause/resume functionality with client/server
+- [x] Run CLI tests
 - [ ] Await further instructions

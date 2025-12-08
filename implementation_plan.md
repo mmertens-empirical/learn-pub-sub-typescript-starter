@@ -1,18 +1,15 @@
-# Implementation Plan - Durable Queues
+# Implementation Plan - Consumers
 
 ## Goal Description
 
-Implement durable queues that are automatically deleted when not in use. This
-involves updating the `declareAndBind` helper to support the changed
-requirements for "durable" queues and binding a `game_logs` queue in the server.
+Implement message consumption in the client to react to pause/resume events.
+This involves creating a generic `subscribeJSON` helper and a specific handler
+for pause messages in the client.
 
 ## User Review Required
 
-> [!IMPORTANT]
-> The requirements for "durable" queues have changed. Previously, they were
-> `autoDelete: false`. Now, they must be "deleted automatically when they are no
-> longer in use" (`autoDelete: true`). I will update `declareAndBind` to reflect
-> this.
+> [!NOTE]
+> I will use `amqp.ConsumeMessage` type for the callback.
 
 ## Proposed Changes
 
@@ -20,29 +17,41 @@ requirements for "durable" queues and binding a `game_logs` queue in the server.
 
 #### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
 
-- Update `SimpleQueueType` logic in `declareAndBind`:
-  - `durable`: `durable: true`, `autoDelete: true` (Changed from false),
-    `exclusive: false`.
-  - `transient`: `durable: false`, `autoDelete: true`, `exclusive: true`.
+- Export `subscribeJSON` function:
+  - calls `declareAndBind`.
+  - calls `ch.consume`.
+  - parses JSON from `msg.content`.
+  - calls handler.
+  - acks message.
 
-### Server
+### Client
 
-#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
+#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
 
-- Import `ExchangePerilTopic`, `GameLogSlug`.
-- Call `declareAndBind` to create:
-  - Exchange: `ExchangePerilTopic`
-  - Queue Name: `GameLogSlug` ("game_logs")
-  - Routing Key: `game_logs.*`
-  - Type: `"durable"`
+- Implement `handlerPause(gs: GameState)`:
+  - Returns a function `(ps: PlayingState) => void`.
+  - Calls `gs.handlePause` (need to check if this exists or if I need to
+    implement logic, instructions say "Use game state handlePause function").
+    _Wait, looking at `gamestate.ts` earlier, it has `pauseGame()` and
+    `resumeGame()`, not `handlePause`. I might need to clarify or adapt._ Use
+    `gs.pauseGame()` if `ps.isPaused` is true, and `gs.resumeGame()` otherwise.
+  - Prints "> " for UI refresh.
+- Update `main`:
+  - Call `subscribeJSON` with `handlerPause(gs)`.
 
 ## Verification Plan
 
+### Manual Verification
+
+1. Start client (`washington`) and server.
+2. Spawn unit in client.
+3. Pause game in server.
+4. Verify client logs "The game is paused" (or similar from game state) and
+   disallows move.
+5. Resume game in server.
+6. Verify client allows move.
+
 ### Automated Verification
 
-- Restart server: `npm run server`.
-- Run CLI tests (provided by user, presumably externally or via `curl`
-  equivalents).
-- Verify queue properties via API:
-  - `GET /api/queues/%2F/game_logs`
-  - Expect: `durable: true`, `auto_delete: true`, `exclusive: false`.
+- `GET /api/queues/%2F/pause.washington`
+- Expect `message_stats.deliver_get > 1`.

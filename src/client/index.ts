@@ -12,6 +12,9 @@ import { GameState } from "../internal/gamelogic/gamestate.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
 import { commandMove } from "../internal/gamelogic/move.js";
 
+import type { PlayingState } from "../internal/gamelogic/gamestate.js";
+import { subscribeJSON } from "../internal/pubsub/index.js";
+
 async function main() {
   console.log("Starting Peril client...");
   const connStr = "amqp://guest:guest@localhost:5672/";
@@ -20,16 +23,16 @@ async function main() {
 
   const username = await clientWelcome();
   const queueName = `${PauseKey}.${username}`;
+  const gs = new GameState(username);
 
-  await declareAndBind(
+  await subscribeJSON(
     rabConn,
     ExchangePerilDirect,
     queueName,
     PauseKey,
     "transient",
+    handlerPause(gs),
   );
-
-  const gs = new GameState(username);
 
   while (true) {
     const words = await getInput();
@@ -66,6 +69,19 @@ async function main() {
       console.error("Unknown command");
     }
   }
+}
+
+function handlerPause(gs: GameState) {
+  return (ps: PlayingState) => {
+    if (ps.isPaused) {
+      gs.pauseGame();
+      console.log("The game is paused");
+    } else {
+      gs.resumeGame();
+      console.log("The game is resumed");
+    }
+    process.stdout.write("> ");
+  };
 }
 
 main().catch((err) => {

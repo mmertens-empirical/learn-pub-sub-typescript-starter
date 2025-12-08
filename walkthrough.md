@@ -199,3 +199,40 @@ Result: **Success**
 
 Result: **Success** (Matches correct requirements: Durable, Non-exclusive, NOT
 Auto-delete)
+
+# Verification: Consumers
+
+## Changes Made
+
+- Implemented `subscribeJSON` in `src/internal/pubsub/index.ts`.
+- Updated `src/client/index.ts` to implement `handlerPause` and subscribe to
+  pause messages.
+
+## Verification Results
+
+### Consumer Behavior
+
+Started client (`washington`) and server.
+
+1. Spawned unit in client.
+2. Server sent `pause`. Client received: `The game is paused`.
+3. Client attempted move. Result: `Error: The game is paused...` (Correct).
+4. Server sent `resume`. Client received: `The game is resumed`.
+5. Client attempted move. Result: `Moved 1 units...` (Correct).
+
+### Message Stats Verification
+
+`GET /api/queues/%2F/pause.washington`
+
+```json
+{
+  "name": "pause.washington",
+  "message_stats": {
+    "publish": 2, // > 1
+    "deliver_get": 2 // > 1
+  },
+  ...
+}
+```
+
+Result: **Success** (Messages published and consumed)
