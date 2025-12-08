@@ -171,3 +171,31 @@ You are suntzu, and you have 1 units.
 ```
 
 Result: **Success**
+
+# Verification: Durable Queues
+
+## Changes Made
+
+- Updated `src/server/index.ts` to bind `game_logs` queue to `peril_topic`
+  exchange.
+- **Fixed:** Reverted `declareAndBind` to ensure "durable" queues have
+  `autoDelete: false`.
+
+## Verification Results
+
+### Queue Properties Verification
+
+`GET /api/queues/%2F/game_logs`
+
+```json
+{
+  "name": "game_logs",
+  "auto_delete": false,
+  "durable": true,
+  "exclusive": false,
+  ...
+}
+```
+
+Result: **Success** (Matches correct requirements: Durable, Non-exclusive, NOT
+Auto-delete)

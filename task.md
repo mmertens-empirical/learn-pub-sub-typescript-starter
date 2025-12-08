@@ -28,4 +28,9 @@
 - [x] Implement Client REPL loop
 - [x] Implement `spawn`, `move`, `status`, `help`, `spam`, `quit` commands
 - [x] Verify client commands manually
+- [x] Manual: Create `peril_topic` exchange
+- [x] Manual: Create `peril_topic` exchange
+- [x] Update `declareAndBind` for new durable requirements
+- [x] Bind `game_logs` queue in server
+- [x] Verify implementation
 - [ ] Await further instructions

@@ -1,45 +1,48 @@
-# Implementation Plan - Client REPL
+# Implementation Plan - Durable Queues
 
 ## Goal Description
 
-Update the client to support interactive game commands via a REPL loop. This
-allows players to spawn units, move them, and check their status.
+Implement durable queues that are automatically deleted when not in use. This
+involves updating the `declareAndBind` helper to support the changed
+requirements for "durable" queues and binding a `game_logs` queue in the server.
 
 ## User Review Required
 
-> [!NOTE]
-> I will use the existing helper functions provided in
-> `src/internal/gamelogic/`.
+> [!IMPORTANT]
+> The requirements for "durable" queues have changed. Previously, they were
+> `autoDelete: false`. Now, they must be "deleted automatically when they are no
+> longer in use" (`autoDelete: true`). I will update `declareAndBind` to reflect
+> this.
 
 ## Proposed Changes
 
-### Client
+### Shared Library
 
-#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
+#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
 
-- Import `GameState`, `commandSpawn`, `commandMove`, `printClientHelp`,
-  `printQuit`, `commandStatus`, `getInput`.
-- Initialize `GameState` with the username after connection.
-- Implement an infinite loop:
-  - Wait for input using `getInput`.
-  - Handle `spawn`: Call `commandSpawn`.
-  - Handle `move`: Call `commandMove`.
-  - Handle `status`: Call `commandStatus`.
-  - Handle `help`: Call `printClientHelp`.
-  - Handle `spam`: Print "Spamming not allowed yet!".
-  - Handle `quit`: Call `printQuit` and exit.
-  - Handle unknown commands: Print error.
+- Update `SimpleQueueType` logic in `declareAndBind`:
+  - `durable`: `durable: true`, `autoDelete: true` (Changed from false),
+    `exclusive: false`.
+  - `transient`: `durable: false`, `autoDelete: true`, `exclusive: true`.
+
+### Server
+
+#### [MODIFY] [index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
+
+- Import `ExchangePerilTopic`, `GameLogSlug`.
+- Call `declareAndBind` to create:
+  - Exchange: `ExchangePerilTopic`
+  - Queue Name: `GameLogSlug` ("game_logs")
+  - Routing Key: `game_logs.*`
+  - Type: `"durable"`
 
 ## Verification Plan
 
-### Manual Verification
+### Automated Verification
 
-1. Run `npm run client`.
-2. Enter username (e.g., `suntzu`).
-3. Test commands:
-   - `help`
-   - `spawn europe infantry` (Check output for ID)
-   - `status` (Check if unit appears)
-   - `move europe <ID>` (Move unit)
-   - `spam`
-   - `quit`
+- Restart server: `npm run server`.
+- Run CLI tests (provided by user, presumably externally or via `curl`
+  equivalents).
+- Verify queue properties via API:
+  - `GET /api/queues/%2F/game_logs`
+  - Expect: `durable: true`, `auto_delete: true`, `exclusive: false`.
