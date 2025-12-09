@@ -38,4 +38,8 @@
 - [x] Update client to subscribe to pause messages
 - [x] Verify pause/resume functionality with client/server
 - [x] Run CLI tests
+- [x] Implement `subscribeJSON` for `army_moves.*` using `handleMove`
+- [x] Update `move` command to publish to `army_moves.username`
+- [x] Verify moves are broadcast to all clients
+- [x] Run CLI tests
 - [ ] Await further instructions

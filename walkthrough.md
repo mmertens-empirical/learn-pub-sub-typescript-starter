@@ -236,3 +236,49 @@ Started client (`washington`) and server.
 ```
 
 Result: **Success** (Messages published and consumed)
+
+# Verification: Routing Patterns
+
+## Changes Made
+
+- Updated `src/client/index.ts` to subscribe to `army_moves.*` on `peril_topic`
+  topic using `subscribeJSON`.
+- Updated `src/client/index.ts` `move` command to publish to
+  `army_moves.<username>` on `peril_topic`.
+
+## Verification Results
+
+### Move Broadcast
+
+Started 2 clients: `washington` and `napoleon`.
+
+1. `washington` spawned units.
+2. `washington` executed `move asia 1 2`.
+3. `washington` logs:
+
+```
+==== Move Detected ====
+washington is moving 2 unit(s) to asia
+* infantry
+* cavalry
+------------------------
+```
+
+4. `napoleon` logs:
+
+```
+==== Move Detected ====
+washington is moving 2 unit(s) to asia
+* infantry
+* cavalry
+You are safe from washington's units.
+------------------------
+```
+
+Result: **Success** (Broadcast received by both publisher and subscriber)
+
+### Bindings Verification
+
+Using CLI test data (provided by user): `GET /api/bindings` Expect:
+`army_moves.*` binding. Result from user CLI output:
+`routing_key: "army_moves.*"` exists in bindings list. Result: **Success**
