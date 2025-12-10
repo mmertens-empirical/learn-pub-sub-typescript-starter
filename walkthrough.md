@@ -275,7 +275,37 @@ You are safe from washington's units.
 ------------------------
 ```
 
-Result: **Success** (Broadcast received by both publisher and subscriber)
+Result: **Success**
+
+# Verification: Dead Letter Implementation
+
+## Changes Made
+
+- Created `peril_dlx` fanout exchange via RabbitMQ Management API.
+- Created `peril_dlq` durable queue via RabbitMQ Management API.
+- Bound `peril_dlq` to `peril_dlx` via RabbitMQ Management API.
+
+## Verification Results
+
+### Bindings Verification
+
+`GET /api/bindings` Expect: Binding from `peril_dlx` to `peril_dlq`. Result:
+
+```json
+{
+  "source": "peril_dlx",
+  "vhost": "/",
+  "destination": "peril_dlq",
+  "destination_type": "queue",
+  "routing_key": "",
+  "arguments": {},
+  "properties_key": "~"
+}
+```
+
+Status Code: 200 Body contains `peril_dlx`: **Yes** Body contains `peril_dlq`:
+**Yes** Result: **Success** (Broadcast received by both publisher and
+subscriber)
 
 ### Bindings Verification
 

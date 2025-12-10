@@ -42,4 +42,8 @@
 - [x] Update `move` command to publish to `army_moves.username`
 - [x] Verify moves are broadcast to all clients
 - [x] Run CLI tests
+- [x] Create `peril_dlx` fanout exchange
+- [x] Create `peril_dlq` queue
+- [x] Bind `peril_dlq` to `peril_dlx`
+- [x] Verify bindings via CLI
 - [ ] Await further instructions
