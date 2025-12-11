@@ -347,3 +347,23 @@ Started 2 clients: `washington` and `napoleon`.
    ```
 
 Result: **Success**
+
+# Verification: Dead Letter Queue Configuration
+
+## Changes Made
+
+- Updated `declareAndBind` in `src/internal/pubsub/index.ts` to add
+  `x-dead-letter-exchange: "peril_dlx"` to all queue declarations.
+- Restarted clients to recreate queues with new configuration.
+
+## Verification Results
+
+### Routing to DLQ Verification
+
+1. `washington` executed `move europe 1`, resulting in `NackDiscard`.
+2. Verified `peril_dlq` state via API:
+   - Command:
+     `curl -u guest:guest http://localhost:15672/api/queues/%2F/peril_dlq`
+   - Result: `messages_ready: 1`
+   - Outcome: Rejection was correctly routed to DLX and then to DLQ. Result:
+     **Success**

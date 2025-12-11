@@ -21,6 +21,9 @@ export async function declareAndBind(
     durable: queueType === "durable",
     autoDelete: queueType === "transient",
     exclusive: queueType === "transient",
+    arguments: {
+      "x-dead-letter-exchange": "peril_dlx",
+    },
   });
 
   await ch.bindQueue(queue.queue, exchange, routingKey);

@@ -51,4 +51,8 @@
 - [x] Update `handlerPause` to return `Ack`
 - [x] Update `move` handler to return `Ack`/`NackDiscard` based on outcome
 - [x] Verify Ack/Nack behavior with 2 clients
+- [x] Update `declareAndBind` to set `x-dead-letter-exchange`
+- [x] Restart clients to recreate queues
+- [x] Reproduce Ack/Nack test case (Washington NackDiscard)
+- [x] Verify failed message exists in `peril_dlq` via API
 - [ ] Await further instructions
