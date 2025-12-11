@@ -312,3 +312,38 @@ subscriber)
 Using CLI test data (provided by user): `GET /api/bindings` Expect:
 `army_moves.*` binding. Result from user CLI output:
 `routing_key: "army_moves.*"` exists in bindings list. Result: **Success**
+
+# Verification: Ack and Nack
+
+## Changes Made
+
+- Updated `subscribeJSON` in `src/internal/pubsub/index.ts` to require `AckType`
+  return and handle acknowledgements.
+- Updated `src/client/index.ts` to implement acknowledgement logic for `pause`
+  (Ack) and `army_moves` (Ack/NackDiscard) subscriptions.
+
+## Verification Results
+
+### Ack/Nack Logic Verification
+
+Started 2 clients: `washington` and `napoleon`.
+
+1. `washington` spawned `americas artillery`.
+2. `napoleon` spawned `europe cavalry`.
+3. `washington` executed `move europe 1`.
+4. `washington` logs:
+   ```
+   ==== Move Detected ====
+   ...
+   NackDiscard // Correct (SamePlayer/MovePublisher)
+   ```
+5. `napoleon` logs:
+   ```
+   ==== Move Detected ====
+   ...
+   You have units in europe! You are at war with washington!
+   ------------------------
+   Ack // Correct (MakeWar)
+   ```
+
+Result: **Success**

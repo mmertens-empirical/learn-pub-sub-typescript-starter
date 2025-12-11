@@ -46,4 +46,9 @@
 - [x] Create `peril_dlq` queue
 - [x] Bind `peril_dlq` to `peril_dlx`
 - [x] Verify bindings via CLI
+- [x] Modify `subscribeJSON` handler signature to return `AckType`
+- [x] Implement Ack/Nack logic in `subscribeJSON` with logging
+- [x] Update `handlerPause` to return `Ack`
+- [x] Update `move` handler to return `Ack`/`NackDiscard` based on outcome
+- [x] Verify Ack/Nack behavior with 2 clients
 - [ ] Await further instructions

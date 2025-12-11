@@ -21,6 +21,9 @@ import type { PlayingState } from "../internal/gamelogic/gamestate.js";
 import { subscribeJSON } from "../internal/pubsub/index.js";
 import type { ArmyMove } from "../internal/gamelogic/gamedata.js";
 
+import type { AckType } from "../internal/pubsub/index.js";
+import { MoveOutcome } from "../internal/gamelogic/move.js";
+
 async function main() {
   console.log("Starting Peril client...");
   const connStr = "amqp://guest:guest@localhost:5672/";
@@ -46,9 +49,13 @@ async function main() {
     `${ArmyMovesPrefix}.${username}`,
     `${ArmyMovesPrefix}.*`,
     "transient",
-    (data: ArmyMove) => {
-      handleMove(gs, data);
+    (data: ArmyMove): AckType => {
+      const outcome = handleMove(gs, data);
       process.stdout.write("> ");
+      if (outcome === MoveOutcome.MakeWar || outcome === MoveOutcome.Safe) {
+        return "ack";
+      }
+      return "nack_discard";
     },
   );
 
@@ -96,7 +103,7 @@ async function main() {
 }
 
 function handlerPause(gs: GameState) {
-  return (ps: PlayingState) => {
+  return (ps: PlayingState): AckType => {
     if (ps.isPaused) {
       gs.pauseGame();
       console.log("The game is paused");
@@ -105,6 +112,7 @@ function handlerPause(gs: GameState) {
       console.log("The game is resumed");
     }
     process.stdout.write("> ");
+    return "ack";
   };
 }
 
