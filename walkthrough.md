@@ -367,3 +367,33 @@ Result: **Success**
    - Result: `messages_ready: 1`
    - Outcome: Rejection was correctly routed to DLX and then to DLQ. Result:
      **Success**
+
+# Verification: Robust Queue Declaration
+
+## Changes Made
+
+- Updated `declareAndBind` in `src/internal/pubsub/index.ts` to try/catch
+  `PRECONDITION_FAILED` errors (code 406).
+- Added logic to re-create the channel, delete the conflicting queue, and
+  re-create it with correct arguments.
+- Added channel error listener to prevent process crash from `amqplib` error
+  events.
+
+## Verification Results
+
+### Conflict Resolution
+
+1. Deleted `game_logs`.
+2. Created "bad" `game_logs` without DLX arguments:
+   `curl ... -d '{"durable":true}'`.
+3. Started server: `npm run server`.
+4. Observed logs:
+   ```
+   Caught error declaring queue: Error: Operation failed...
+   Error code: 406
+   ```
+5. Verified `game_logs` arguments via API:
+   - `x-dead-letter-exchange: "peril_dlx"` is present.
+   - Server started successfully.
+
+Result: **Success**

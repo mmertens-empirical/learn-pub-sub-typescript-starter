@@ -55,4 +55,6 @@
 - [x] Restart clients to recreate queues
 - [x] Reproduce Ack/Nack test case (Washington NackDiscard)
 - [x] Verify failed message exists in `peril_dlq` via API
+- [x] Implement `try/catch` in `declareAndBind` to handle `PRECONDITION_FAILED`
+- [x] Verify fix by creating conflicting queue and running server
 - [ ] Await further instructions
