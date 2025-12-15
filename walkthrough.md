@@ -427,3 +427,29 @@ Result: **Success**
      required.
 
 Result: **Success**
+
+# Verification: Requeue Hell Fix
+
+## Changes Made
+
+- Updated `move` handler to use `try/catch` for war message publication.
+- On success: `ch.close()` and return `"ack"` (Breaking the retry loop).
+- On failure: `ch.close()` and return `"nack_requeue"` (Retrying transient
+  errors).
+
+## Verification Results
+
+### Fix Verification
+
+1. Purged `war` queue via API.
+2. `washington` spawned `americas infantry`.
+3. `napoleon` spawned `europe cavalry`.
+4. `washington` executed `move europe 1`.
+5. Observed:
+   - "War Declared" logs appeared exactly **once**.
+   - "You have lost the war!" (Washington) / "napoleon has won the war!"
+     appeared once.
+   - Logs stopped scrolling. NO infinite loop.
+   - The message was processed and acknowledged successfully.
+
+Result: **Success**

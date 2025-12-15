@@ -1,21 +1,15 @@
-# Implementation Plan - War Logic & Requeue Hell
+# Implementation Plan - Nack Requeue Fix
 
 ## Goal Description
 
-Implement the "War" mechanic in Peril.
+Fix the "Requeue Hell" in the `move` handler.
 
-- When a move results in `MakeWar`:
-  - Publish a `RecognitionOfWar` message to routing key `war.<username>`.
-  - **NackRequeue** the move message (to simulate the "requeue hell" / infinite
-    retry until the war is resolved).
-- Implement a `war` queue consumer:
-  - Shared durable queue named `war`.
-  - Routing key `war.*`.
-  - Logic:
-    - `NotInvolved`: **NackRequeue** (let someone else handle it).
-    - `NoUnits`: **NackDiscard** (invalid state).
-    - `YouWon`, `OpponentWon`, `Draw`: **Ack** (war over).
-    - Error: **NackDiscard**.
+- Instead of always returning `nack_requeue` when `MakeWar` occurs:
+  - Attempt to publish the `RecognitionOfWar` message.
+  - If successful: Return `"ack"` (Consumer successfully processed the move by
+    starting the war).
+  - If failure (publish error): Return `"nack_requeue"` (Transient error, try
+    again).
 
 ## Proposed Changes
 
@@ -23,24 +17,10 @@ Implement the "War" mechanic in Peril.
 
 #### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
 
-- Import `WarRecognitionsPrefix` and `handleWar`, `WarOutcome`.
-- Update `subscribeJSON` for `army_moves.*`:
-  - In handler:
-    - If `MoveOutcome.MakeWar`:
-      - Construct `RecognitionOfWar` object.
-      - Publish to `ExchangePerilTopic` with key
-        `${WarRecognitionsPrefix}.${username}`.
-      - Return `"nack_requeue"`.
-- Add new `subscribeJSON` for `war` queue:
-  - Queue Name: `war` (shared, durable).
-  - Routing Key: `war.*`.
-  - Handler:
-    - Call `handleWar(gs, data)`.
-    - Switch on result:
-      - `NotInvolved` -> Return `"nack_requeue"`.
-      - `NoUnits` -> Return `"nack_discard"`.
-      - `OpponentWon`, `YouWon`, `Draw` -> Return `"ack"`.
-    - Catch/Default -> Return `"nack_discard"`.
+- In the `army_moves` subscription handler (`MakeWar` case):
+  - Wrap publication in `try/catch`.
+  - If successful: `ch.close()` and return `"ack"`.
+  - If catch error: `ch.close()` (safely) and return `"nack_requeue"`.
 
 ## Verification Plan
 
@@ -51,15 +31,11 @@ Implement the "War" mechanic in Peril.
 3. `napoleon`: `spawn europe cavalry`.
 4. `washington`: `move europe 1`.
 5. **Observe**:
-   - Washington's client should log "MakeWar", publish war message, then
-     NackRequeue.
-   - War consumer (on both clients) will pick up the war message.
-   - If client is not involved, it NackRequeues.
-   - Eventually the correct clients process it and one wins/loses.
-   - RabbitMQ UI should show high redelivery count/message rate ("Requeue Hell")
-     due to the loop until resolution.
+   - War declaration logs appear **once**.
+   - No infinite loop of "War Declared" / "Ack".
+   - Washington logs "You have lost..." (or won) and then stops.
 
 ### Automated Verification
 
-- `GET /api/queues/%2F/war`
-- Expect `message_stats.redeliver` > 100.
+- No specific API stats to check other than observing normal behavior vs
+  infinite loop.

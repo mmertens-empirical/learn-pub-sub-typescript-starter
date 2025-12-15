@@ -64,18 +64,23 @@ async function main() {
           return "ack";
         case MoveOutcome.MakeWar: {
           const ch = await rabConn.createConfirmChannel();
-          const warMsg: RecognitionOfWar = {
-            attacker: data.player,
-            defender: gs.getPlayerSnap(),
-          };
-          await publishJSON(
-            ch,
-            ExchangePerilTopic,
-            `${WarRecognitionsPrefix}.${username}`,
-            warMsg,
-          );
-          ch.close();
-          return "nack_requeue";
+          try {
+            const warMsg: RecognitionOfWar = {
+              attacker: data.player,
+              defender: gs.getPlayerSnap(),
+            };
+            await publishJSON(
+              ch,
+              ExchangePerilTopic,
+              `${WarRecognitionsPrefix}.${username}`,
+              warMsg,
+            );
+            ch.close();
+            return "ack";
+          } catch (e) {
+            ch.close();
+            return "nack_requeue";
+          }
         }
         case MoveOutcome.SamePlayer:
           return "nack_discard";

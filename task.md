@@ -65,4 +65,7 @@
 - [x] Update `subscribeJSON` return type (already done, verify)
 - [x] Verify "Requeue Hell" visual via RabbitMQ UI/API
 - [/] Run CLI tests
+- [x] Update `move` handler to Ack on successful war publication
+- [x] Update `move` handler to NackRequeue ONLY on publish failure
+- [x] Verify fix (War executed once, no loop)
 - [ ] Await further instructions
