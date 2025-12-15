@@ -68,4 +68,6 @@
 - [x] Update `move` handler to Ack on successful war publication
 - [x] Update `move` handler to NackRequeue ONLY on publish failure
 - [x] Verify fix (War executed once, no loop)
+- [x] Install `@msgpack/msgpack`
+- [x] Implement `publishMsgPack` in `src/internal/pubsub/index.ts`
 - [ ] Await further instructions

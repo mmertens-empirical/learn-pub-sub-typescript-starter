@@ -5,6 +5,7 @@ import type {
   Connection,
   ChannelModel,
 } from "amqplib";
+import { encode } from "@msgpack/msgpack";
 
 export type SimpleQueueType = "durable" | "transient";
 
@@ -80,6 +81,18 @@ export function publishJSON<T>(
         }
       },
     );
+  });
+}
+
+export async function publishMsgPack<T>(
+  ch: ConfirmChannel,
+  exchange: string,
+  routingKey: string,
+  value: T,
+): Promise<void> {
+  const data = encode(value);
+  ch.publish(exchange, routingKey, Buffer.from(data), {
+    contentType: "application/x-msgpack",
   });
 }
 

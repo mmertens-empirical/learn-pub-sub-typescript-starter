@@ -1,41 +1,31 @@
-# Implementation Plan - Nack Requeue Fix
+# Implementation Plan - MessagePack Serialization
 
 ## Goal Description
 
-Fix the "Requeue Hell" in the `move` handler.
-
-- Instead of always returning `nack_requeue` when `MakeWar` occurs:
-  - Attempt to publish the `RecognitionOfWar` message.
-  - If successful: Return `"ack"` (Consumer successfully processed the move by
-    starting the war).
-  - If failure (publish error): Return `"nack_requeue"` (Transient error, try
-    again).
+Implement MessagePack serialization for message publishing. JSON is
+human-readable but less efficient. MessagePack is binary and compact. We will
+add a helper function `publishMsgPack` to serialize data using MessagePack
+before publishing to RabbitMQ.
 
 ## Proposed Changes
 
-### Client Logic
+### PubSub Library
 
-#### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
+#### [MODIFY] [src/internal/pubsub/index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
 
-- In the `army_moves` subscription handler (`MakeWar` case):
-  - Wrap publication in `try/catch`.
-  - If successful: `ch.close()` and return `"ack"`.
-  - If catch error: `ch.close()` (safely) and return `"nack_requeue"`.
+- Import `encode` from `@msgpack/msgpack`.
+- Export function `publishMsgPack<T>`:
+  - Signature:
+    `(ch: ConfirmChannel, exchange: string, routingKey: string, value: T): Promise<void>`
+  - Logic:
+    - `encode(value)` to get binary data.
+    - `ch.publish(exchange, routingKey, Buffer.from(encodedData), { contentType: "application/x-msgpack" })`
+    - Note: `encode` returns a `Uint8Array`, which might need conversion to
+      `Buffer` for amqplib, or amqplib might accept it. `Buffer.from()` is safe.
 
 ## Verification Plan
 
-### Manual Verification
-
-1. Start `washington` and `napoleon`.
-2. `washington`: `spawn americas infantry`.
-3. `napoleon`: `spawn europe cavalry`.
-4. `washington`: `move europe 1`.
-5. **Observe**:
-   - War declaration logs appear **once**.
-   - No infinite loop of "War Declared" / "Ack".
-   - Washington logs "You have lost..." (or won) and then stops.
-
-### Automated Verification
-
-- No specific API stats to check other than observing normal behavior vs
-  infinite loop.
+- The user hasn't asked for a specific test case (e.g., "update client to use
+  it").
+- I will verify the code compiles (`npm run server` check).
+- No runtime verification requested yet (likely next step).
