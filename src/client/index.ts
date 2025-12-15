@@ -7,22 +7,28 @@ import {
   commandStatus,
 } from "../internal/gamelogic/gamelogic.js";
 import { declareAndBind, publishJSON } from "../internal/pubsub/index.js";
+
+import { GameState } from "../internal/gamelogic/gamestate.js";
+import { commandSpawn } from "../internal/gamelogic/spawn.js";
+import { commandMove } from "../internal/gamelogic/move.js";
+
+import type { PlayingState } from "../internal/gamelogic/gamestate.js";
+import { subscribeJSON } from "../internal/pubsub/index.js";
+
 import {
   ExchangePerilDirect,
   PauseKey,
   ExchangePerilTopic,
   ArmyMovesPrefix,
+  WarRecognitionsPrefix,
 } from "../internal/routing/routing.js";
-import { GameState } from "../internal/gamelogic/gamestate.js";
-import { commandSpawn } from "../internal/gamelogic/spawn.js";
-import { commandMove, handleMove } from "../internal/gamelogic/move.js";
-
-import type { PlayingState } from "../internal/gamelogic/gamestate.js";
-import { subscribeJSON } from "../internal/pubsub/index.js";
-import type { ArmyMove } from "../internal/gamelogic/gamedata.js";
-
+import { handleMove, MoveOutcome } from "../internal/gamelogic/move.js";
+import { handleWar, WarOutcome } from "../internal/gamelogic/war.js";
+import type {
+  ArmyMove,
+  RecognitionOfWar,
+} from "../internal/gamelogic/gamedata.js";
 import type { AckType } from "../internal/pubsub/index.js";
-import { MoveOutcome } from "../internal/gamelogic/move.js";
 
 async function main() {
   console.log("Starting Peril client...");
@@ -49,13 +55,58 @@ async function main() {
     `${ArmyMovesPrefix}.${username}`,
     `${ArmyMovesPrefix}.*`,
     "transient",
-    (data: ArmyMove): AckType => {
+    async (data: ArmyMove): Promise<AckType> => {
       const outcome = handleMove(gs, data);
       process.stdout.write("> ");
-      if (outcome === MoveOutcome.MakeWar || outcome === MoveOutcome.Safe) {
-        return "ack";
+
+      switch (outcome) {
+        case MoveOutcome.Safe:
+          return "ack";
+        case MoveOutcome.MakeWar: {
+          const ch = await rabConn.createConfirmChannel();
+          const warMsg: RecognitionOfWar = {
+            attacker: data.player,
+            defender: gs.getPlayerSnap(),
+          };
+          await publishJSON(
+            ch,
+            ExchangePerilTopic,
+            `${WarRecognitionsPrefix}.${username}`,
+            warMsg,
+          );
+          ch.close();
+          return "nack_requeue";
+        }
+        case MoveOutcome.SamePlayer:
+          return "nack_discard";
+        default:
+          return "nack_discard";
       }
-      return "nack_discard";
+    },
+  );
+
+  await subscribeJSON(
+    rabConn,
+    ExchangePerilTopic,
+    "war",
+    `${WarRecognitionsPrefix}.*`,
+    "durable",
+    async (data: RecognitionOfWar): Promise<AckType> => {
+      const outcome = handleWar(gs, data);
+      process.stdout.write("> ");
+
+      switch (outcome.result) {
+        case WarOutcome.NotInvolved:
+          return "nack_requeue";
+        case WarOutcome.NoUnits:
+          return "nack_discard";
+        case WarOutcome.OpponentWon:
+        case WarOutcome.YouWon:
+        case WarOutcome.Draw:
+          return "ack";
+        default:
+          return "nack_discard";
+      }
     },
   );
 

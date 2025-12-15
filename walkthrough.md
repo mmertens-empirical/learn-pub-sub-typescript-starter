@@ -397,3 +397,33 @@ Result: **Success**
    - Server started successfully.
 
 Result: **Success**
+
+# Verification: War Logic & Requeue Hell
+
+## Changes Made
+
+- Updated client `move` handler to detect `MakeWar` outcome.
+- Implemented war message publishing: `war.<username>`.
+- Updated `move` handler to **NackRequeue** when war is declared (creating the
+  retry loop).
+- Implemented `war` queue consumer with specific Ack/Nack logic based on
+  `handleWar` outcome.
+
+## Verification Results
+
+### "Requeue Hell" Verification
+
+1. `washington` spawned `americas infantry`.
+2. `napoleon` spawned `europe cavalry`.
+3. `washington` executed `move europe 1`.
+4. Observed:
+   - `washington` logs showed infinite stream of war declarations and Acks.
+   - `handlerMove` kept reprocessing the Move message (NackRequeue), causing
+     infinite War publications.
+5. RabbitMQ API Verification:
+   - Command: `curl -u guest:guest http://localhost:15672/api/queues/%2F/war`
+   - Result: `message_stats.redeliver: 1520` (Confirmed > 100).
+   - Outcome: The system successfully entered the "Requeue Hell" state as
+     required.
+
+Result: **Success**

@@ -1,37 +1,65 @@
-# Implementation Plan - Robust Queue Declaration
+# Implementation Plan - War Logic & Requeue Hell
 
 ## Goal Description
 
-Modify `declareAndBind` to handle `PRECONDITION_FAILED` errors caused by
-conflicting queue arguments (e.g., mismatching `x-dead-letter-exchange`). The
-system should automatically delete and recreate the queue in these cases to
-ensure the latest configuration is applied without manual intervention.
+Implement the "War" mechanic in Peril.
+
+- When a move results in `MakeWar`:
+  - Publish a `RecognitionOfWar` message to routing key `war.<username>`.
+  - **NackRequeue** the move message (to simulate the "requeue hell" / infinite
+    retry until the war is resolved).
+- Implement a `war` queue consumer:
+  - Shared durable queue named `war`.
+  - Routing key `war.*`.
+  - Logic:
+    - `NotInvolved`: **NackRequeue** (let someone else handle it).
+    - `NoUnits`: **NackDiscard** (invalid state).
+    - `YouWon`, `OpponentWon`, `Draw`: **Ack** (war over).
+    - Error: **NackDiscard**.
 
 ## Proposed Changes
 
-### Queue Declaration Logic
+### Client Logic
 
-#### [MODIFY] [src/internal/pubsub/index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
+#### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
 
-- Wrap `ch.assertQueue` in a `try/catch` block.
-- Catch errors with code `406` (PRECONDITION_FAILED) or message containing
-  "PRECONDITION_FAILED".
-- If caught:
-  1. Create a replacement channel (since the original is closed by the error).
-  2. Delete the conflicting queue using `ch.deleteQueue`.
-  3. Re-run `ch.assertQueue` with the correct arguments.
-  4. Bind and return the new channel and queue.
-- If other error, re-throw.
+- Import `WarRecognitionsPrefix` and `handleWar`, `WarOutcome`.
+- Update `subscribeJSON` for `army_moves.*`:
+  - In handler:
+    - If `MoveOutcome.MakeWar`:
+      - Construct `RecognitionOfWar` object.
+      - Publish to `ExchangePerilTopic` with key
+        `${WarRecognitionsPrefix}.${username}`.
+      - Return `"nack_requeue"`.
+- Add new `subscribeJSON` for `war` queue:
+  - Queue Name: `war` (shared, durable).
+  - Routing Key: `war.*`.
+  - Handler:
+    - Call `handleWar(gs, data)`.
+    - Switch on result:
+      - `NotInvolved` -> Return `"nack_requeue"`.
+      - `NoUnits` -> Return `"nack_discard"`.
+      - `OpponentWon`, `YouWon`, `Draw` -> Return `"ack"`.
+    - Catch/Default -> Return `"nack_discard"`.
 
 ## Verification Plan
 
+### Manual Verification
+
+1. Start `washington` and `napoleon`.
+2. `washington`: `spawn americas infantry`.
+3. `napoleon`: `spawn europe cavalry`.
+4. `washington`: `move europe 1`.
+5. **Observe**:
+   - Washington's client should log "MakeWar", publish war message, then
+     NackRequeue.
+   - War consumer (on both clients) will pick up the war message.
+   - If client is not involved, it NackRequeues.
+   - Eventually the correct clients process it and one wins/loses.
+   - RabbitMQ UI should show high redelivery count/message rate ("Requeue Hell")
+     due to the loop until resolution.
+
 ### Automated Verification
 
-1. **Stop Server** (if running).
-2. **Create Conflicting Queue**:
-   - Use RabbitMQ API (`curl`) to delete `game_logs`.
-   - Create `game_logs` _without_ `x-dead-letter-exchange` argument.
-3. **Run Server**:
-   - `npm run server`
-   - Verify server starts successfully (no 406 crash).
-   - Verify `game_logs` queue args via API (should have DLX).
+- `GET /api/queues/%2F/war`
+- Expect `message_stats.redeliver` > 100.

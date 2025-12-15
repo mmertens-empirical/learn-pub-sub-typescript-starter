@@ -57,4 +57,12 @@
 - [x] Verify failed message exists in `peril_dlq` via API
 - [x] Implement `try/catch` in `declareAndBind` to handle `PRECONDITION_FAILED`
 - [x] Verify fix by creating conflicting queue and running server
+- [x] Update `move` handler to detect `MakeWar` and publish war message
+- [x] Implement start of "Requeue Hell" (NackRequeue on war detection in move
+      handler)
+- [x] Create `war` queue and subscription handler
+- [x] Implement `handleWar` logic with specific Ack/Nack outcomes
+- [x] Update `subscribeJSON` return type (already done, verify)
+- [x] Verify "Requeue Hell" visual via RabbitMQ UI/API
+- [/] Run CLI tests
 - [ ] Await further instructions
