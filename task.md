@@ -70,4 +70,10 @@
 - [x] Verify fix (War executed once, no loop)
 - [x] Install `@msgpack/msgpack`
 - [x] Implement `publishMsgPack` in `src/internal/pubsub/index.ts`
+- [x] Create/Update `GameLog` in `src/internal/gamelogic/logs.ts`
+- [x] Create `publishGameLog` in `src/client/index.ts`
+- [x] Update `war` handler to publish logs
+- [x] Remove `console.log` from `subscribeJSON`
+- [x] Verify logs via RabbitMQ UI/API
+- [/] Run CLI tests
 - [ ] Await further instructions

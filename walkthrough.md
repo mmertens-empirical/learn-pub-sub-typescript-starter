@@ -453,3 +453,26 @@ Result: **Success**
    - The message was processed and acknowledged successfully.
 
 Result: **Success**
+
+# Verification: Game Logs
+
+## Changes Made
+
+- Updated `GameLog` interface in `logs.ts`.
+- Implemented `publishGameLog` in client using msgpack.
+- Updated War/Move handlers to publish logs for war outcomes.
+- Removed debug `console.log`s from `subscribeJSON`.
+
+## Verification Results
+
+### Log Publication
+
+1. Cleared `war` queue.
+2. Executed 3 War scenarios (Spawn -> Move -> War).
+3. Verified `game_logs` queue stats via API:
+   - Command:
+     `curl -u guest:guest http://localhost:15672/api/queues/%2F/game_logs`
+   - Result: `messages_ready: 3`.
+   - Outcome: Logs are being successfully published and queued.
+
+Result: **Success**

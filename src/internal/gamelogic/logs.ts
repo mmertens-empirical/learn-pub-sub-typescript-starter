@@ -1,7 +1,7 @@
 import { appendFile } from "fs/promises";
 
 export interface GameLog {
-  currentTime: Date;
+  timestamp: number;
   message: string;
   username: string;
 }
@@ -18,7 +18,7 @@ export async function writeLog(gameLog: GameLog): Promise<void> {
   console.log("received game log...");
   block(writeToDiskSleep);
 
-  const date = new Date(gameLog.currentTime);
+  const date = new Date(gameLog.timestamp);
   const timestamp = date.toISOString();
   const logEntry = `${timestamp} ${gameLog.username}: ${gameLog.message}\n`;
 

@@ -6,7 +6,11 @@ import {
   printQuit,
   commandStatus,
 } from "../internal/gamelogic/gamelogic.js";
-import { declareAndBind, publishJSON } from "../internal/pubsub/index.js";
+import {
+  declareAndBind,
+  publishJSON,
+  publishMsgPack,
+} from "../internal/pubsub/index.js";
 
 import { GameState } from "../internal/gamelogic/gamestate.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
@@ -21,9 +25,11 @@ import {
   ExchangePerilTopic,
   ArmyMovesPrefix,
   WarRecognitionsPrefix,
+  GameLogSlug,
 } from "../internal/routing/routing.js";
 import { handleMove, MoveOutcome } from "../internal/gamelogic/move.js";
 import { handleWar, WarOutcome } from "../internal/gamelogic/war.js";
+import type { GameLog } from "../internal/gamelogic/logs.js";
 import type {
   ArmyMove,
   RecognitionOfWar,
@@ -107,13 +113,49 @@ async function main() {
           return "nack_discard";
         case WarOutcome.OpponentWon:
         case WarOutcome.YouWon:
-        case WarOutcome.Draw:
-          return "ack";
+        case WarOutcome.Draw: {
+          let message = "";
+          if (outcome.result === WarOutcome.OpponentWon) {
+            message = `${outcome.winner} won a war against ${outcome.loser}`;
+          } else if (outcome.result === WarOutcome.YouWon) {
+            message = `${outcome.winner} won a war against ${outcome.loser}`;
+          } else {
+            message = `A war between ${outcome.attacker} and ${outcome.defender} resulted in a draw`;
+          }
+          const ch = await rabConn.createConfirmChannel();
+          try {
+            await publishGameLog(ch, username, message);
+            ch.close();
+            return "ack";
+          } catch (e) {
+            console.error("Error publishing game log:", e);
+            ch.close();
+            return "nack_requeue";
+          }
+        }
         default:
           return "nack_discard";
       }
     },
   );
+
+  async function publishGameLog(
+    ch: amqp.ConfirmChannel,
+    username: string,
+    message: string,
+  ) {
+    const log: GameLog = {
+      timestamp: Date.now(),
+      message: message,
+      username: username,
+    };
+    await publishMsgPack(
+      ch,
+      ExchangePerilTopic,
+      `${GameLogSlug}.${username}`,
+      log,
+    );
+  }
 
   while (true) {
     const words = await getInput();

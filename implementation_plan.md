@@ -1,31 +1,54 @@
-# Implementation Plan - MessagePack Serialization
+# Implementation Plan - Game Logs
 
 ## Goal Description
 
-Implement MessagePack serialization for message publishing. JSON is
-human-readable but less efficient. MessagePack is binary and compact. We will
-add a helper function `publishMsgPack` to serialize data using MessagePack
-before publishing to RabbitMQ.
+Implement logging for Game Events (specifically War) using MessagePack and a
+RabbitMQ topic exchange. Logs will be published to `game_logs` queue via
+`peril_topic` exchange.
 
 ## Proposed Changes
+
+### Game Logic
+
+#### [MODIFY] [src/internal/gamelogic/logs.ts](file:///home/mmertens/bootdev/pubSub/src/internal/gamelogic/logs.ts)
+
+- Update `GameLog` interface to match assignment:
+  - `username`: string
+  - `message`: string
+  - `timestamp`: number (milliseconds) - _Note: current file has
+    `currentTime: Date`, will likely add a new interface or update existing if
+    unused elsewhere._
+
+### Client Logic
+
+#### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
+
+- Implement `publishGameLog(ch, username, message)`:
+  - Create `GameLog` object.
+  - Call `publishMsgPack` with routing key `GameLogSlug.username`.
+- Update `war` queue handler:
+  - On outcomes (`OpponentWon`, `YouWon`, `Draw`):
+    - Construct log message (e.g., "{winner} won a war against {loser}").
+    - Call `publishGameLog`.
+    - Ack/Nack based on publishing success (try/catch).
 
 ### PubSub Library
 
 #### [MODIFY] [src/internal/pubsub/index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
 
-- Import `encode` from `@msgpack/msgpack`.
-- Export function `publishMsgPack<T>`:
-  - Signature:
-    `(ch: ConfirmChannel, exchange: string, routingKey: string, value: T): Promise<void>`
-  - Logic:
-    - `encode(value)` to get binary data.
-    - `ch.publish(exchange, routingKey, Buffer.from(encodedData), { contentType: "application/x-msgpack" })`
-    - Note: `encode` returns a `Uint8Array`, which might need conversion to
-      `Buffer` for amqplib, or amqplib might accept it. `Buffer.from()` is safe.
+- Remove `console.log("Ack")`, `console.log("Nack...")` from `subscribeJSON` as
+  requested to clean up output.
 
 ## Verification Plan
 
-- The user hasn't asked for a specific test case (e.g., "update client to use
-  it").
-- I will verify the code compiles (`npm run server` check).
-- No runtime verification requested yet (likely next step).
+### Manual Verification
+
+1. Start server and 2 clients.
+2. Spawn units and trigger war.
+3. Check RabbitMQ UI/API for `game_logs` queue.
+4. Expect `messages_ready > 0`.
+
+### Automated Verification
+
+- `GET /api/queues/%2F/game_logs`
+- Expect `messages_ready > 2` (after 3 events).
