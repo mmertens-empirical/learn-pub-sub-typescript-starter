@@ -5,9 +5,14 @@ import {
   ExchangePerilTopic,
   GameLogSlug,
 } from "../internal/routing/routing.js";
-import { publishJSON, declareAndBind } from "../internal/pubsub/index.js";
+import {
+  publishJSON,
+  subscribeMsgPack,
+  type AckType,
+} from "../internal/pubsub/index.js";
 import type { PlayingState } from "../internal/gamelogic/gamestate.js";
 import { getInput, printServerHelp } from "../internal/gamelogic/gamelogic.js";
+import { writeLog, type GameLog } from "../internal/gamelogic/logs.js";
 
 async function main() {
   console.log("Starting Peril server...");
@@ -17,12 +22,17 @@ async function main() {
 
   const ch = await rabConn.createConfirmChannel();
 
-  await declareAndBind(
+  await subscribeMsgPack(
     rabConn,
     ExchangePerilTopic,
     GameLogSlug,
     "game_logs.*",
     "durable",
+    async (log: GameLog): Promise<AckType> => {
+      await writeLog(log);
+      process.stdout.write("> ");
+      return "ack";
+    },
   );
 
   printServerHelp();
