@@ -75,5 +75,12 @@
 - [x] Update `war` handler to publish logs
 - [x] Remove `console.log` from `subscribeJSON`
 - [x] Verify logs via RabbitMQ UI/API
-- [/] Run CLI tests
+- [x] Add `*.log` to `.gitignore`
+- [x] Create `src/internal/pubsub/consume.ts` with generic `subscribe`
+- [x] Implement `subscribeMsgPack` in `consume.ts`
+- [x] Refactor `subscribeJSON` to use `subscribe` in `consume.ts`
+- [x] Update `src/internal/pubsub/index.ts` to export from `consume.ts`
+- [x] Update `src/server/index.ts` to consume `game_logs`
+- [x] Verify consumption (logs stored in `game.log`)
+- [x] Run CLI tests
 - [ ] Await further instructions

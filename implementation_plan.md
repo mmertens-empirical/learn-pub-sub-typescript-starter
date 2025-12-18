@@ -1,54 +1,57 @@
-# Implementation Plan - Game Logs
+# Implementation Plan - Consume Logs
 
 ## Goal Description
 
-Implement logging for Game Events (specifically War) using MessagePack and a
-RabbitMQ topic exchange. Logs will be published to `game_logs` queue via
-`peril_topic` exchange.
+Implement consumption of Game Logs on the server side and save them to disk.
+Refactor `pubsub` module to separate consumption logic into `consume.ts`. Use
+MessagePack for log deserialization.
 
 ## Proposed Changes
 
-### Game Logic
+### Configuration
 
-#### [MODIFY] [src/internal/gamelogic/logs.ts](file:///home/mmertens/bootdev/pubSub/src/internal/gamelogic/logs.ts)
+#### [MODIFY] [.gitignore](file:///home/mmertens/bootdev/pubSub/.gitignore)
 
-- Update `GameLog` interface to match assignment:
-  - `username`: string
-  - `message`: string
-  - `timestamp`: number (milliseconds) - _Note: current file has
-    `currentTime: Date`, will likely add a new interface or update existing if
-    unused elsewhere._
-
-### Client Logic
-
-#### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
-
-- Implement `publishGameLog(ch, username, message)`:
-  - Create `GameLog` object.
-  - Call `publishMsgPack` with routing key `GameLogSlug.username`.
-- Update `war` queue handler:
-  - On outcomes (`OpponentWon`, `YouWon`, `Draw`):
-    - Construct log message (e.g., "{winner} won a war against {loser}").
-    - Call `publishGameLog`.
-    - Ack/Nack based on publishing success (try/catch).
+- Add `*.log` to ignore log files.
 
 ### PubSub Library
 
+#### [NEW] [src/internal/pubsub/consume.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/consume.ts)
+
+- Implement generic `subscribe<T>` function (as provided in prompt).
+- Implement `subscribeMsgPack<T>`:
+  - Uses `decode` from `@msgpack/msgpack`.
+  - Calls `subscribe` with `unmarshaller` = `decode`.
+- Move/Refactor `subscribeJSON<T>`:
+  - Calls `subscribe` with `unmarshaller` = `JSON.parse`.
+
 #### [MODIFY] [src/internal/pubsub/index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
 
-- Remove `console.log("Ack")`, `console.log("Nack...")` from `subscribeJSON` as
-  requested to clean up output.
+- Remove `subscribeJSON` implementation (it moved to `consume.ts`).
+- Export everything from `consume.ts`.
+
+### Server Logic
+
+#### [MODIFY] [src/server/index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
+
+- Import `subscribeMsgPack`.
+- Import `writeLog` from `gamelogic/logs.js`.
+- Replace `declareAndBind` for `game_logs` with `subscribeMsgPack`:
+  - Routing Key: `GameLogSlug.*` (Wildcard).
+  - Handler:
+    - Call `writeLog(log)`.
+    - Print prompt (`>`).
+    - Return `ack`.
 
 ## Verification Plan
 
 ### Manual Verification
 
-1. Start server and 2 clients.
-2. Spawn units and trigger war.
-3. Check RabbitMQ UI/API for `game_logs` queue.
-4. Expect `messages_ready > 0`.
+1. Restart Server.
+2. Observe `game.log` file creation and content (expect 3+ logs from previous
+   step).
+3. Check RabbitMQ API: `messages_ready` should be 0.
 
 ### Automated Verification
 
-- `GET /api/queues/%2F/game_logs`
-- Expect `messages_ready > 2` (after 3 events).
+- `GET /api/queues/%2F/game_logs` -> Expect 0 messages ready.

@@ -476,3 +476,34 @@ Result: **Success**
    - Outcome: Logs are being successfully published and queued.
 
 Result: **Success**
+
+# Verification: Consume Logs
+
+## Changes Made
+
+- Added `*.log` to `.gitignore`.
+- Refactored `pubsub` to separate consumption logic into `consume.ts`.
+- Implemented generic `subscribe` and specialized `subscribeMsgPack` (MsgPack)
+  and `subscribeJSON` (JSON).
+- Updated the server to subscribe to the `game_logs` queue using
+  `subscribeMsgPack`.
+- Integrated `writeLog` to persist consumed logs to `game.log`.
+
+## Verification Results
+
+### Log Consumption & Persistence
+
+1. Generated logs by triggering a war between `washington` and `napoleon`.
+2. Restarted the server to initiate consumption.
+3. Verified `game.log` content:
+   - Command: `cat game.log`
+   - Result:
+     `2025-12-16T15:51:35.173Z washington: napoleon won a war against washington`.
+4. Verified RabbitMQ queue status:
+   - Command:
+     `curl -u guest:guest http://localhost:15672/api/queues/%2F/game_logs`
+   - Result: `messages_ready: 0`.
+   - Outcome: Logs were successfully consumed from the queue and persisted to
+     disk.
+
+Result: **Success**
