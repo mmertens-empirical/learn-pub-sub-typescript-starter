@@ -20,7 +20,7 @@ export async function subscribe<T>(
     simpleQueueType,
   );
 
-  await ch.prefetch(1);
+  await ch.prefetch(10);
 
   await ch.consume(queue.queue, async (msg) => {
     if (!msg) {

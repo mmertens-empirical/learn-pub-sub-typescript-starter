@@ -91,4 +91,7 @@
 - [x] Add TTY check to `src/server/index.ts`
 - [x] Run `multiserver.sh 100`
 - [x] Observe and capture behavior (backpressure/prefetch issue)
+- [x] Update prefetch to 10 in `src/internal/pubsub/consume.ts`
+- [x] Run `multiserver.sh 20` to drain queue
+- [x] Verify queue is empty via CLI tests
 - [ ] Await further instructions

@@ -1,31 +1,31 @@
-# Implementation Plan - Scaling Servers
+# Implementation Plan - Prefetch Update
 
 ## Goal Description
 
-Scale the Peril server to 100 instances to attempt emptying the backed-up
-`game_logs` queue and observe the limitations caused by current prefetch
-settings.
+Update the prefetch count from 1 to 10 to improve message processing throughput
+when running multiple server instances. Drain the backed-up `game_logs` queue.
 
 ## Proposed Changes
 
-### Server Logic
+### PubSub Library
 
-#### [MODIFY] [src/server/index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
+#### [MODIFY] [src/internal/pubsub/consume.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/consume.ts)
 
-- Add a check for `process.stdin.isTTY` before the command loop.
-- If not a TTY, print a message and exit the function early to allow the server
-  to remain active as a background consumer without trying to read interactive
-  input.
+- Update `await ch.prefetch(1)` to `await ch.prefetch(10)` in the `subscribe`
+  function.
 
 ## Verification Plan
 
 ### Manual Verification
 
-1. Verify `game_logs` queue has messages (it should from the previous task).
-2. Run `./src/scripts/multiserver.sh 100`.
+1. Verify `game_logs` queue has messages.
+2. Run `./src/scripts/multiserver.sh 20`.
 3. Observe RabbitMQ Management UI:
-   - Check the number of consumers (should be 100+).
-   - Watch the "Ready" vs "Unacknowledged" message counts.
-   - Observe the "Acknowledge" rate (expected to be lower than theoretical 100
-     msg/s if fixed prefetch is an issue).
-4. Terminate the script with Ctrl+C.
+   - Watch the "Acknowledge" rate (expected to be ~100 msg/s).
+   - Watch "Ready" count drop to 0.
+4. Once empty, terminate the script.
+
+### Automated Tests
+
+- Run `curl -u guest:guest http://localhost:15672/api/queues/%2F/game_logs` and
+  verify `messages_ready == 0`.
