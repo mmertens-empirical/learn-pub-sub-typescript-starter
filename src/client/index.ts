@@ -5,6 +5,7 @@ import {
   printClientHelp,
   printQuit,
   commandStatus,
+  getMaliciousLog,
 } from "../internal/gamelogic/gamelogic.js";
 import {
   declareAndBind,
@@ -190,7 +191,22 @@ async function main() {
     } else if (command === "help") {
       printClientHelp();
     } else if (command === "spam") {
-      console.log("Spamming not allowed yet!");
+      if (words.length < 2) {
+        console.log("Usage: spam <n>");
+        continue;
+      }
+      const n = parseInt(words[1]!);
+      if (Number.isNaN(n)) {
+        console.log("n must be a number");
+        continue;
+      }
+      const ch = await rabConn.createConfirmChannel();
+      for (let i = 0; i < n; i++) {
+        const message = getMaliciousLog();
+        await publishGameLog(ch, username, message);
+      }
+      await ch.close();
+      console.log(`Successfully spammed ${n} logs`);
     } else if (command === "quit") {
       printQuit();
       process.exit(0);

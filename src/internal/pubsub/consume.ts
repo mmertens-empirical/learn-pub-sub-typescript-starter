@@ -20,6 +20,8 @@ export async function subscribe<T>(
     simpleQueueType,
   );
 
+  await ch.prefetch(1);
+
   await ch.consume(queue.queue, async (msg) => {
     if (!msg) {
       console.warn("Consumer cancelled by server");

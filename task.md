@@ -83,4 +83,9 @@
 - [x] Update `src/server/index.ts` to consume `game_logs`
 - [x] Verify consumption (logs stored in `game.log`)
 - [x] Run CLI tests
+- [x] Run CLI tests
+- [x] Implement `spam` command in `src/client/index.ts`
+- [x] Add `ch.prefetch(1)` to `subscribe` in `src/internal/pubsub/consume.ts`
+- [x] Verify backpressure (queue рост with spam 10000)
+- [x] Run CLI tests
 - [ ] Await further instructions

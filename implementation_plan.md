@@ -1,57 +1,45 @@
-# Implementation Plan - Consume Logs
+# Implementation Plan - Backpressure Demonstration
 
 ## Goal Description
 
-Implement consumption of Game Logs on the server side and save them to disk.
-Refactor `pubsub` module to separate consumption logic into `consume.ts`. Use
-MessagePack for log deserialization.
+Demonstrate backpressure by:
+
+1. Limiting the server to process only one message at a time.
+2. Generating a large spike of messages from the client.
 
 ## Proposed Changes
 
-### Configuration
-
-#### [MODIFY] [.gitignore](file:///home/mmertens/bootdev/pubSub/.gitignore)
-
-- Add `*.log` to ignore log files.
-
 ### PubSub Library
 
-#### [NEW] [src/internal/pubsub/consume.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/consume.ts)
+#### [MODIFY] [src/internal/pubsub/consume.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/consume.ts)
 
-- Implement generic `subscribe<T>` function (as provided in prompt).
-- Implement `subscribeMsgPack<T>`:
-  - Uses `decode` from `@msgpack/msgpack`.
-  - Calls `subscribe` with `unmarshaller` = `decode`.
-- Move/Refactor `subscribeJSON<T>`:
-  - Calls `subscribe` with `unmarshaller` = `JSON.parse`.
+- In the `subscribe` function, add `await ch.prefetch(1)` after the queue is
+  declared and bound. This ensures the consumer only receives one message at a
+  time.
 
-#### [MODIFY] [src/internal/pubsub/index.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/index.ts)
+### Client Logic
 
-- Remove `subscribeJSON` implementation (it moved to `consume.ts`).
-- Export everything from `consume.ts`.
+#### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
 
-### Server Logic
-
-#### [MODIFY] [src/server/index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
-
-- Import `subscribeMsgPack`.
-- Import `writeLog` from `gamelogic/logs.js`.
-- Replace `declareAndBind` for `game_logs` with `subscribeMsgPack`:
-  - Routing Key: `GameLogSlug.*` (Wildcard).
-  - Handler:
-    - Call `writeLog(log)`.
-    - Print prompt (`>`).
-    - Return `ack`.
+- Update the `spam` command handler:
+  - Parse the number of messages to spam from `words[1]`.
+  - Loop `n` times.
+  - Call `getMaliciousLog()` to get a message.
+  - Call `publishMsgPack()` to send the message to the `peril_topic` exchange
+    with routing key `game_logs.<username>`.
 
 ## Verification Plan
 
 ### Manual Verification
 
-1. Restart Server.
-2. Observe `game.log` file creation and content (expect 3+ logs from previous
-   step).
-3. Check RabbitMQ API: `messages_ready` should be 0.
+1. Start the server and client.
+2. Run `spam 25` in the client.
+3. Observe the server processing messages slowly (1 per second due to the
+   `block` in `writeLog`).
+4. Observe the queue in RabbitMQ Management UI growing and then shrinking.
+5. Run `spam 10000` to create a sustained backpressure scenario.
 
-### Automated Verification
+### Automated Tests
 
-- `GET /api/queues/%2F/game_logs` -> Expect 0 messages ready.
+- Run `curl -u guest:guest http://localhost:15672/api/queues/%2F/game_logs` and
+  verify `messages_ready > 999`.

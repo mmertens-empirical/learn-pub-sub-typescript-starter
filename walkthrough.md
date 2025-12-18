@@ -507,3 +507,30 @@ Result: **Success**
      disk.
 
 Result: **Success**
+
+# Verification: Backpressure
+
+## Changes Made
+
+- Implemented `spam <n>` command in `client/index.ts` to generate malicious
+  logs.
+- Added `ch.prefetch(1)` in `pubsub/consume.ts` to limit concurrent message
+  processing.
+- Verified that `writeLog` blocks for 1 second, causing backpressure.
+
+## Verification Results
+
+### Backpressure Spike
+
+1. Started Server and Client.
+2. Executed `spam 25` in the client.
+3. Observed the queue spikes and then drains at 1 message per second.
+4. Executed `spam 10000` in the client.
+5. Verified `game_logs` queue stats via API:
+   - Command:
+     `curl -u guest:guest http://localhost:15672/api/queues/%2F/game_logs`
+   - Result: `messages_ready: 9935`.
+   - Outcome: The queue is successfully backed up with thousands of messages due
+     to the prefetch limit and slow processing.
+
+Result: **Success**
