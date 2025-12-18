@@ -1,45 +1,31 @@
-# Implementation Plan - Backpressure Demonstration
+# Implementation Plan - Scaling Servers
 
 ## Goal Description
 
-Demonstrate backpressure by:
-
-1. Limiting the server to process only one message at a time.
-2. Generating a large spike of messages from the client.
+Scale the Peril server to 100 instances to attempt emptying the backed-up
+`game_logs` queue and observe the limitations caused by current prefetch
+settings.
 
 ## Proposed Changes
 
-### PubSub Library
+### Server Logic
 
-#### [MODIFY] [src/internal/pubsub/consume.ts](file:///home/mmertens/bootdev/pubSub/src/internal/pubsub/consume.ts)
+#### [MODIFY] [src/server/index.ts](file:///home/mmertens/bootdev/pubSub/src/server/index.ts)
 
-- In the `subscribe` function, add `await ch.prefetch(1)` after the queue is
-  declared and bound. This ensures the consumer only receives one message at a
-  time.
-
-### Client Logic
-
-#### [MODIFY] [src/client/index.ts](file:///home/mmertens/bootdev/pubSub/src/client/index.ts)
-
-- Update the `spam` command handler:
-  - Parse the number of messages to spam from `words[1]`.
-  - Loop `n` times.
-  - Call `getMaliciousLog()` to get a message.
-  - Call `publishMsgPack()` to send the message to the `peril_topic` exchange
-    with routing key `game_logs.<username>`.
+- Add a check for `process.stdin.isTTY` before the command loop.
+- If not a TTY, print a message and exit the function early to allow the server
+  to remain active as a background consumer without trying to read interactive
+  input.
 
 ## Verification Plan
 
 ### Manual Verification
 
-1. Start the server and client.
-2. Run `spam 25` in the client.
-3. Observe the server processing messages slowly (1 per second due to the
-   `block` in `writeLog`).
-4. Observe the queue in RabbitMQ Management UI growing and then shrinking.
-5. Run `spam 10000` to create a sustained backpressure scenario.
-
-### Automated Tests
-
-- Run `curl -u guest:guest http://localhost:15672/api/queues/%2F/game_logs` and
-  verify `messages_ready > 999`.
+1. Verify `game_logs` queue has messages (it should from the previous task).
+2. Run `./src/scripts/multiserver.sh 100`.
+3. Observe RabbitMQ Management UI:
+   - Check the number of consumers (should be 100+).
+   - Watch the "Ready" vs "Unacknowledged" message counts.
+   - Observe the "Acknowledge" rate (expected to be lower than theoretical 100
+     msg/s if fixed prefetch is an issue).
+4. Terminate the script with Ctrl+C.

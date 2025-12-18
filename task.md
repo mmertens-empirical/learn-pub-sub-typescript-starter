@@ -88,4 +88,7 @@
 - [x] Add `ch.prefetch(1)` to `subscribe` in `src/internal/pubsub/consume.ts`
 - [x] Verify backpressure (queue рост with spam 10000)
 - [x] Run CLI tests
+- [x] Add TTY check to `src/server/index.ts`
+- [x] Run `multiserver.sh 100`
+- [x] Observe and capture behavior (backpressure/prefetch issue)
 - [ ] Await further instructions

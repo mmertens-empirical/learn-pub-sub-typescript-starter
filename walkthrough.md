@@ -534,3 +534,28 @@ Result: **Success**
      to the prefetch limit and slow processing.
 
 Result: **Success**
+
+# Verification: Scaling Servers
+
+## Changes Made
+
+- Added TTY detection to `src/server/index.ts` to skip command input when
+  running in non-interactive environments (like scaling scripts).
+- Used `multiserver.sh` to spawn multiple server instances.
+
+## Verification Results
+
+### Scaling Attempt
+
+1. Updated server code with TTY check.
+2. Executed `./src/scripts/multiserver.sh 100`.
+3. Observed process and consumer stats:
+   - Multiple `tsx` processes were spawned.
+   - Initial checks showed a bottleneck in consumer connection/registration,
+     with limited scaling observed in the RabbitMQ Management API results (fewer
+     consumers than started).
+   - Acknowledge rate did not reach the theoretical 100 msg/s, consistent with
+     the prefetch issues described in the assignment.
+4. Terminated all instances safely.
+
+Result: **Success** (Observed bottleneck as expected)
